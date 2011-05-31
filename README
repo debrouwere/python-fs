@@ -1,0 +1,1 @@
+`fs` is a small library that tries to unify file handling in Python, exposing functionality from `os`, `sys`, `shutil`, `glob`, `tempfile` and other modules through an easy object-oriented interface. Not ready for primetime.
