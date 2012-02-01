@@ -2,9 +2,10 @@ import os
 import sys
 import shutil
 import glob
-import zip
+import zipfile
 import tempfile
 import urllib2
+import re as regex
 
 try:
     import cStringIO as StringIO
@@ -49,10 +50,15 @@ class File(object):
     @property
     def abspath(self):
         return os.path.abspath(self._path)
+
+    @property
+    def name(self):
+        end = len(self.basename) - len(self.extension)
+        return self.basename[:end]
     
     @property
     def basename(self):
-        return os.path.basename(self._path)
+        return os.path.basename(self._path).decode('utf8')
     
     @property
     def filename(self):
@@ -98,6 +104,15 @@ class File(object):
     @property
     def archived(self):
         pass
+
+    @property
+    def siblings(self):
+        files = Directory(self.dirname).files
+        return [file for file in files if file.path != self.path]
+
+    @property
+    def siblings_and_me(self):
+        return self.siblings + [self]
     
     # explicit mode
     def open(self, mode='r'):
@@ -122,14 +137,6 @@ class File(object):
             self.open(mode)
             self.obj.write(content)
             self.close()
-
-    def files(self, filter='*', recursive=False, flatten=True):
-        if isinstance(filter, basestring):
-            return glob.iglob(self._path + '/' + filter)
-        elif isinstance(filter, re):
-            pass
-        else:
-            raise Exception()
             
     def copy(self, dest, preserve=False):
         dest = path(dest)
@@ -173,20 +180,71 @@ class Link(File):
         self.defined = True
 
 class Directory(File):
-    def __init__(self, path, strict=True):
-        pass
+    def __init__(self, *fragments):
+        self._path = os.path.join(*fragments)
+        self._strict = False
+
+    @property
+    def name(self):
+        return self.basename
     
     def copy(self, dest):
         shutil.copytree(self._path, path(dest))
     
-    def remove(self, force=False):
-        if force:
+    def remove(self, recursive=False, force=False):
+        if recursive:
             shutil.rmtree(self._path)
         else:
             os.rmdir(self._path)
+
+    @property
+    def parent(self):
+        root = os.path.dirname(self.path)
+        return Directory(root)
+
+    @property
+    def files(self):
+        files = os.listdir(self.path)
+        paths = map(lambda file: os.path.join(self.path, file), files)
+
+        return [File(path) for path in paths if os.path.isfile(path)]
+
+    @property
+    def directories(self):
+        files = os.listdir(self.path)
+        paths = map(lambda file: os.path.join(self.path, file), files)
+    
+        return [Directory(path) for path in paths if os.path.isdir(path)]
+
+    @property
+    def siblings(self):
+        return [Directory(dir) for dir in self.parent.directories if dir.path != self.path]
+
+    @property
+    def siblings_and_me(self):
+        return self.siblings + [self]
+
+    @property
+    def is_root(self):
+        return self.path == '/'
+
+    @property
+    def is_leaf(self):
+        return len(self.directories) == 0
+
+    def find(self, pattern='*', recursive=False, flatten=True):
+        # TODO: support for trees and recursive searches
+        if isinstance(pattern, basestring):
+            paths = glob.iglob(self._path + '/' + pattern)
+        elif isinstance(pattern, re):
+            paths = [file for file in self.files if re.match(pattern, file.basename)]
+        else:
+            raise Exception()
+
+        return map(File, paths)
     
     # shallow comparison
     def __cmp__(self, comparison):
         return filecmp.cmp(self._path, comparison)
     
-Directory.home = Directory(os.environ['home'])
+# Directory.home = Directory(os.environ['home'])
