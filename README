@@ -1,3 +1,5 @@
 `fs` is a small library that unifies file handling in Python, exposing functionality from `os`, `sys`, `shutil`, `glob`, `tempfile` and other modules through an easy object-oriented interface.
 
 I'm using this in a couple of personal projects, but hasn't seen any production use yet. The implementation is not complete by any stretch. Open-sourced to hopefully serve as inspiration.
+
+Also take a gander at https://github.com/lakshmivyas/fswrap to see which approach you like best.
